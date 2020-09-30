@@ -106,3 +106,4 @@ if __name__ == '__main__':
     print(AudioHandler(aud, beat_track=beat_track).get_bar_duration())
     handler.slice_by_beat()
     handler.preprocess()
+    print("handling error....")
