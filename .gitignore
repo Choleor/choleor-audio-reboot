@@ -1,0 +1,12 @@
+config.py
+__pycache__/
+templates/
+**/migrations/
+.idea/
+db.sqlite3
+archive.txt
+media
+reader.py
+**/*.wav
+*.webm
+*.opus
