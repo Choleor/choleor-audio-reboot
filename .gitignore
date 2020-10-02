@@ -10,3 +10,4 @@ reader.py
 **/*.wav
 *.webm
 *.opus
+requirements.txt

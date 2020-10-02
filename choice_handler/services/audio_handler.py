@@ -1,3 +1,6 @@
+from __future__ import absolute_import, unicode_literals
+from celery import task
+
 import os
 from pydub import AudioSegment
 from audiotsm import phasevocoder
@@ -9,6 +12,8 @@ from threading import Thread
 from multiprocessing import Process
 from utils.optimization import single_process_to_multi_process
 from utils.utils import within_iteration as it
+from celery import Celery
+from celery.decorators import task
 
 
 # audio 객체에 대한 has-a relationship으로 AudioHandler class에서 제어하는 게 맞나?
@@ -20,26 +25,26 @@ class AudioHandler:
         self._audio_id = audio.audio_id
         self._audio_duration = audio.duration
 
-        self._beat_track = beat_track  # beat_track과 audio_slice_id는 1:1 대응됨
+        self.beat_track = beat_track  # beat_track과 audio_slice_id는 1:1 대응됨
         self._audio_slice_duration = None
 
     def get_slice_id(self, start_sec):  # 나중에 없애기
-        return self._audio_id + "_" + str(self._beat_track.index(start_sec))
+        return self._audio_id + "_" + str(self.beat_track.index(start_sec))
 
     def track_beat(self):
-        self._beat_track = [float(val.strip("\t")) for idx, val in
-                            enumerate(ut.get_console_output('aubio beat "{}.wav"'.format(self._audio_id)).splitlines())
-                            if idx % 8 == 0]
-        return self._beat_track
+        self.beat_track = [float(val.strip("\t")) for idx, val in
+                           enumerate(ut.get_console_output('aubio beat "{}.wav"'.format(self._audio_id)).splitlines())
+                           if idx % 8 == 0]
+        return self.beat_track
 
     def get_bar_duration(self):
-        if self._beat_track is None:
+        if self.beat_track is None:
             raise Exception("Did not initialize the beat track information")
-        return [self._beat_track[i] - self._beat_track[i - 1] for i in range(1, len(self._beat_track) - 1)]
+        return [self.beat_track[i] - self.beat_track[i - 1] for i in range(1, len(self.beat_track) - 1)]
 
     def slice_by_beat(self, start=0, end=None):
         _end = end if not None else self._audio_duration
-        ms_beat_track = [1000 * i for i in self._beat_track]
+        ms_beat_track = [1000 * i for i in self.beat_track]
         audio_source = AudioSegment.from_wav(c.LF_WAV + self._audio_id + ".wav")
 
         if not os.path.isdir(c.LF_SLICE + self._audio_id):
@@ -64,7 +69,7 @@ class AudioHandler:
                 return 0
 
         bar_bpm = 60.00 / (
-                (self._beat_track[int(audio_slice_id.split("_")[1]) + 1] - self._beat_track[
+                (self.beat_track[int(audio_slice_id.split("_")[1]) + 1] - self.beat_track[
                     int(audio_slice_id.split("_")[1])]) / 8)
         with WavReader("{}{}/{}.wav".format(c.LF_SLICE, self._audio_id, audio_slice_id)) as r:
             with WavWriter("{}{}/{}.wav".format(c.LF_CH_BPM, self._audio_id, audio_slice_id),
@@ -72,6 +77,7 @@ class AudioHandler:
                 phasevocoder(r.channels, speed=target_bpm / bar_bpm).run(r, w)
         print("only came " + audio_slice_id)
 
+    @task(name="Preprocess, beat track, change bpm")
     def preprocess(self):
         # self.track_beat()
         self.slice_by_beat()
@@ -81,7 +87,7 @@ class AudioHandler:
             for i in range(x, y):
                 self.change_bar_speed(audio_slice_id=self._audio_id + "_" + str(i))
 
-        single_process_to_multi_process(len(self._beat_track), 4, __change_bars_speed)
+        single_process_to_multi_process(len(self.beat_track), 4, __change_bars_speed)
 
 
 # TODO Audio Model 객체로 바꾸기
@@ -106,4 +112,3 @@ if __name__ == '__main__':
     print(AudioHandler(aud, beat_track=beat_track).get_bar_duration())
     handler.slice_by_beat()
     handler.preprocess()
-    print("handling error....")

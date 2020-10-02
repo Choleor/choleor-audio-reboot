@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 import os
 import config as c
 
-
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -26,7 +25,7 @@ SECRET_KEY = c.SECRET_KEY
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -37,6 +36,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_celery_beat',
+    'django_celery_results',
     'rest_framework',
     'choice_handler',
     'score'
@@ -57,7 +58,7 @@ ROOT_URLCONF = 'choleor_audio.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR +"/"+ 'templates']
+        'DIRS': [BASE_DIR + "/" + 'templates']
         ,
         'APP_DIRS': True,
         'OPTIONS': {
@@ -73,18 +74,23 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'choleor_audio.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/3.0/ref/settings/#databases
-
+# mysql info
 DATABASES = {
     'default': c.DB_INFO
 }
 
+# redis info
 CACHES = {
     "default": c.REDIS_INFO
 }
-# Password validation
-# https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
+
+# celery info
+CELERY_BROKER_URL = c.CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = c.CELERY_RESULT_BACKEND
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TEST_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Seoul'
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -115,8 +121,6 @@ USE_L10N = True
 USE_TZ = True
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 429916160
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/3.0/howto/static-files/
 
 STATIC_URL = '/static/'
 
@@ -126,4 +130,3 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.MultiPartRenderer'
     ]
 }
-
