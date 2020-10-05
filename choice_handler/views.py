@@ -11,8 +11,11 @@ from rest_framework.parsers import FileUploadParser, MultiPartParser, JSONParser
 from utils import utils as ut
 from .services.audio_handler import AudioHandler
 from .services.youtube_info import *
-import asyncio
 import time
+import re
+
+range_re = re.compile(r'bytes\s*=\s*(\d+)\s*-\s*(\d*)', re.I)
+
 file_count = 0
 
 

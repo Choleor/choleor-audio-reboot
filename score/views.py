@@ -19,6 +19,7 @@ def avg_amplitude_list(request):
     # song = Audio.objects.all()
     # serializer = AudioSerializer(song, many=True)
     # return Response(serializer.data)
+    #레디스에 삽입하렴
     return Response(0)
 
 
