@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class ChoiceConfig(AppConfig):
-    name = 'choice_handler'
+    name = 'audio'

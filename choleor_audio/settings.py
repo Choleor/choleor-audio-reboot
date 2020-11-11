@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
-import config as c
+from configuration import config as c, redis_config as rc, celery_config, mysql_config as mc
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,8 +39,7 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'django_celery_results',
     'rest_framework',
-    'choice_handler',
-    'score'
+    'audio'
 ]
 
 MIDDLEWARE = [
@@ -76,21 +75,17 @@ WSGI_APPLICATION = 'choleor_audio.wsgi.application'
 
 # mysql info
 DATABASES = {
-    'default': c.DB_INFO
+    'default': mc.DB_INFO
 }
 
 # redis info
 CACHES = {
-    "default": c.REDIS_INFO
+    "default": rc.REDIS_PREPRO_INFO,
+    "prepro": rc.REDIS_PREPRO_INFO,
+    "similarity": rc.REDIS_SMLR_INFO,
+    "amplitude": rc.REDIS_AMPL_INFO,
+    "user": rc.REDIS_USER_INFO
 }
-
-# celery info
-CELERY_BROKER_URL = c.CELERY_BROKER_URL
-CELERY_RESULT_BACKEND = c.CELERY_RESULT_BACKEND
-CELERY_ACCEPT_CONTENT = ['application/json']
-CELERY_TEST_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Asia/Seoul'
 
 AUTH_PASSWORD_VALIDATORS = [
     {

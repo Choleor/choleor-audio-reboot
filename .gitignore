@@ -1,4 +1,3 @@
-config.py
 __pycache__/
 templates/
 **/migrations/
@@ -11,3 +10,8 @@ reader.py
 *.webm
 *.opus
 requirements.txt
+docker-compose.yml
+dockerfile
+.env
+redis_dao.py
+configuration

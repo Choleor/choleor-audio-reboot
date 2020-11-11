@@ -1,6 +1,6 @@
 import asyncio
 import time
-from utils.utils import get_console_output
+from audio.utils.utils import get_console_output
 
 
 def get_duration(filename, ext, in_path):
@@ -20,7 +20,7 @@ async def example():
     await asyncio.gather(
         temp(1000003232),
         temp(3999423),
-        aggregate(1, 5, 7, 9, 6, 4, 32, 3, 4.9, -194956.585, 198, 238, 384, 7607,29394000),
+        aggregate(1, 5, 7, 9, 6, 4, 32, 3, 4.9, -194956.585, 198, 238, 384, 7607, 29394000),
         temp(2444672),
         temp(2),
         aggregate(2)

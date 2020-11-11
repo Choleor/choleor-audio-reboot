@@ -1,8 +1,11 @@
-# Extract Mean Amplitude
 import librosa
 import numpy as np
+from celery.task import task
+from celery import Celery, app
 
-def getAmplitude(file):
+
+@task(name='get_amplitude')
+def get_amplitude(file):
     music, fs = librosa.load(file)
     music_stft = librosa.stft(music)
     music_amp = librosa.amplitude_to_db(abs(music_stft))
@@ -24,27 +27,10 @@ def getAmplitude(file):
 
         if (amp < 0 or amp > 30):
             step = 0
-        elif (amp >= 0 and amp <= 3):
+        elif (amp == 0):
             step = 1
-        elif (amp > 3 and amp <= 6):
-            step = 2
-        elif (amp > 6 and amp <= 9):
-            step = 3
-        elif (amp > 9 and amp <= 12):
-            step = 4
-        elif (amp > 12 and amp <= 15):
-            step = 5
-        elif (amp > 15 and amp <= 18):
-            step = 6
-        elif (amp > 18 and amp <= 21):
-            step = 7
-        elif (amp > 21 and amp <= 24):
-            step = 8
-        elif (amp > 24 and amp <= 27):
-            step = 9
         else:
-            step = 10
+            step = int(amp / 3) + 1 if (amp % 3 != 0) else int(amp / 3)
 
         amp_list.append(step)  # 자른 박자 안에서 평균 진폭 구하기
-
     return amp_list
