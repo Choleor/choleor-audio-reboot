@@ -6,7 +6,7 @@ from youtube_search import YoutubeSearch
 def write_from_meta(info):
     try:
         url = "https://www.youtube.com/watch?v=" + \
-              YoutubeSearch("{} - {} Official audio Lyrics".format(info), max_results=1).search()[0]["id"]
+              YoutubeSearch("{} - Official audio Lyrics".format(info), max_results=1).search()[0]["id"]
         return write_from_link(url)
     except Exception as e:
         print('error', e)
