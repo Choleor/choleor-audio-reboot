@@ -1,180 +1,160 @@
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import StreamingHttpResponse
+from django.http import HttpResponse
 from rest_framework.response import Response
-from .models import AudioSlice, Audio
-from .serializers import AudioSerializer, AudioSliceSerializer
+from .models import *
+from .serializers import AudioSerializer
 from rest_framework.decorators import api_view
-from rest_framework.decorators import parser_classes
-from rest_framework.parsers import MultiPartParser
-from .utils import utils as ut
-from .redis_dao import *
-from .services.preprocessor import AudioPreprocessor
-from .services.ampl_processor import get_amplitude
-from .services.youtube_handler import *
-import re
-from configuration import celery_config as cc
-from celery import Celery
-from datetime import datetime, timedelta
-import uuid
-import time
-
-range_re = re.compile(r'bytes\s*=\s*(\d+)\s*-\s*(\d*)', re.I)
-file_count = 0
-
-"""
-timeline
-t0 : page 1에서 사용자가 오디오 요청을 보낼 때
-t1 : page 2에서 사용자가 오디오의 구간을 선택할 때
-"""
-
-"""
-t0 > CELERY RESULT BACKEND
-사용자의 오디오 요청에 대한 전처리 실행 후 기록 --> view 함수에
-"""
-# preprocessor = AudioPreprocessor()
-# # task_id는 audio의 id
-# # audio_id = uuid.uuid4()  # 처음 들어오는 경우, 그게 아니면 database에서 꺼내오기
-# AudioPreprocessor().preprocess.apply_async((3, 56), task_id="hiek", expires=datetime.now() + timedelta(days=1))
+from rest_framework import status
+from audio.dbmanager.redis_dao import *
+from audio.utils.audio import *
+from audio.tasks import *
 
 
-"""
-t1 > USER INFO RECORD : (audio <----> choreo <----> product) Inter-server communication
-KEY "a30gk3" <-- uuid.uuid4()
-VAL (HSET)
-{ audio_id : e317fce <-- 클라이언트에게 받을 것
-start : 13  <-- audio_handler가 계산하도록
-end : 31 <-- audio_handler가 계산하도록
-progress : 0.0 }  <-- 어느정도 진행되었는지 percentage
-"""
-
-"""
-t1 > SIMILARITY : (audio <----> choreo) Inter-server communication
-KEY e317fce-14 <-- 노래 구간 id
-VAL [ "af3g0s39_13 : 89", "ldf9a8i_4 : 90", "fk02j3bu_9 : 99", ... ] <-- 노래구간 id 와 점수가 매핑된 요소들로 구성된 list
-"""
-
-
-"""
-t1 > AMPLITUDE : (audio <----> choreo) Inter-server communication
-KEY e317fce-14 <-- 노래 구간 id
-VAL [ 7 2 9 8 6 ] <-- 점수 list
-"""
-
-
-
-
-"""
-===================================================================================================================
-"""
-
-@api_view(['POST'])
-@parser_classes([MultiPartParser])
-def meta(request):
-    data = MultiPartParser.parse(request)
-    print(data)
-    res = write_from_meta()
-    return Response(AudioSerializer(Audio.objects.all(), many=True).data)
-
-
-@api_view(['POST'])
-async def youtube_url(request):
-    download_url = request.data.get("download_url")
+@api_view(['GET'])
+def url(request):
+    """
+    :param request: data 내_url 값
+    :return:
+    """
+    url = request.GET.get("url")
+    audio = None
     try:
-        # 이미 있는 경우
-
-        return Response(AudioSerializer(Audio.objects.get(download_url=download_url)).data)
-    except ObjectDoesNotExist:
+        audio = Audio.objects.get(download_url=url)
+        check_preprocessed_record(audio)
+    except ObjectDoesNotExist:  # 처음 들어온 경우
         try:
-            print(f"started at {time.strftime('%X')}")
-            _id, _title, _duration = await write_from_link(download_url)
-            audio = Audio(audio_id=_id, title=_title, download_url=download_url, duration=_duration)
-            audio.save()
-            serializer = AudioSerializer(audio)
-            # 이게 tasks에 해당됨
-            AudioPreprocessor(audio=audio).preprocess()
-            # 파일 찾아서 정보와 함께 보내주기
-            return Response(serializer.data)
-        except:
-            print("===========download failure=============")
+            _id, _title, _duration = write_from_link(url)
+            audio = Audio(audio_id=_id, title=_title, download_url=url, duration=_duration)
+            Audio.save(audio)
+            AudioPreprocessor(**AudioSerializer(audio).data).preprocess(). \
+                apply_async(task_id=_id, expires=datetime.now() + timedelta(days=1))
+        except Exception as e:
+            print(e)
             return Response("cannot open file.", status=400)
-
-    # response = StreamingHttpResponse(streaming_content=request.FILES["audio_file"])
-    # response['Content-Disposition'] = f'attachment; filename="{request.data["audio_file"]}"'
-    # return response
+    finally:
+        return set_audio_response(config.LF_WAV + audio.audio_id + ".wav", audio.audio_id, "wav", audio.duration)
 
 
 @api_view(['POST'])
-@parser_classes([MultiPartParser])
-# @renderer_classes([MultiPartRenderer])
 def file(request):
     """
     :param request:
-    :return: audio_id 와 file을 streaming 형태로
+    :return:
     """
-    ext = request.data.get("ext")
-    global file_count
-    filename = "up" + str(file_count)
-    if ext != "wav":
-        ut.get_console_output(
-            'ffmpeg -n -i "{}/{}.{}" "{}/{}.wav"'.format("../../media/ORG", filename, ext, "../../media/WAV",
-                                                         filename))
+    audio_id = uuid.uuid1()
+    ext = request.headers.get('extension')
+    # Task chaining : 업로드 된 파일을 write --> 전처리 시행 [task chaining], DB에 별도로
+    handle_uploaded_file(request.FILES, audio_id) if ext == "wav" else handle_uploaded_file(request.FILES, audio_id,
+                                                                                            ext, LF_ORG).apply_async()
+    duration = to_console(
+        "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 {path}.{ext}".format(
+            path=LF_WAV + audio_id + ext if ext == "wav" else LF_ORG + audio_id + ext, ext=ext))
+    return set_audio_response(request.FILES, audio_id, ext, duration)
 
-    # 바로 파일 저장 - store in the volume
-    file_count += 1
 
-    response = StreamingHttpResponse(streaming_content=request.data["audio_file"])
-    response['Content-Disposition'] = f'attachment; filename="{request.data["audio_file"]}"'
+@api_view(['GET'])
+def meta(request):
+    """
+    :param request:
+    :return:
+    """
+    audio_info = request.GET.get('title' + "-" + request.GET.get('artist'))
+    audio = Audio.objects.filter(download_url=search_url_from_meta(audio_info))
+
+    if bool(audio):  # 이미 데이터베이스에 있는 경우
+        check_preprocessed_record(audio)
+        return set_audio_response(LF_WAV + audio.audio_id + ".wav", audio.audio_id, "wav", audio.duration)
+    else:
+        _id, _title, _duration = write_from_meta(audio_info)
+        audio = Audio(audio_id=_id, title=_title, download_url=url, duration=_duration)
+        Audio.save(audio)
+        AudioPreprocessor(**AudioSerializer(audio).data).preprocess(). \
+            apply_async(task_id=_id, expires=datetime.now() + timedelta(hours=15))
+        return set_audio_response(LF_WAV + audio.audio_id + ".wav", audio.audio_id, "wav", audio.duration)
+
+
+@api_view(['GET'])
+def interval_choice(request):
+    """
+    :param request: audio_id, start_sec, end_sec
+    :return: user_id, interval(number)
+
+    1. Check the preprocess redis whether the task is completed
+    2. record on user_redis
+    3. Give tasks to celery worker for processing similarity and amplitude (not recorded in cache)
+    4. Give response to client
+    """
+
+    # get information from request
+    audio_id, start_sec, end_sec = request.GET.get('audio_id'), request.GET.get('start_sec'), request.GET.get('end_sec')
+
+    try:
+        # 1. Check the preprocess redis whether the task is completed with audio_id (task_id)
+        beat_track_list = PreprocessRedisHandler.get_preprocess_result(audio_id)
+
+        # 2. Record on user redis
+        start_sid = convert_sec_to_sid(audio_id, start_sec, beat_track_list)
+        end_sid = convert_sec_to_sid(audio_id, end_sec, beat_track_list, option="end")
+        user_id = uuid.uuid4()  # make user's id in this step
+        interval_n = int(end_sid.split("ㅡ")[1]) - int(start_sid.split("ㅡ")[1])
+        user_data = {"user_id": user_id,
+                     "start_sid": start_sid, "end_sid": end_sid, "counter": 0,
+                     "interval_n": interval_n}
+        UserRedisHandler.set_user_info(**user_data)
+
+        # 3. Process data for unrecorded audio slices with celery worker (background tasks)
+        for i in range(int(start_sid.split("ㅡ")[1]), int(end_sid.split("ㅡ"))):
+            _aud_sid = audio_id + "ㅡ" + str(i)
+            # check if there's already processed data in cache
+            if SimilarityRedisHandler.check_similarity_exists(_aud_sid):  # ALREADY processed in CACHE
+                SimilarityRedisHandler.update_expire_date(_aud_sid)  # prevent to expiration --> update expire date
+            else:  # PROCESS NEEDED --> CACHE INSERT
+                # give processing tasks to celery worker
+                process_similarity_d(_aud_sid).apply_async(_aud_sid, task_id="similarity" + _aud_sid)
+                process_amplitude_d(_aud_sid).apply_async(_aud_sid, task_id="similarity" + _aud_sid)
+
+        # 4. Respond to client
+        response = HttpResponse({"user_id": user_id, "interval": interval_n})
+        return response
+    except Exception as e:
+        print(e)
+        return HttpResponse(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def check_preprocessed_record(audio_object):
+    # To prevent partially preprocessed data, process unsplitted src or insert info which is not recorded
+    # check whether there's record in audio slice db, and compare with folder elements
+    in_volume = set(
+        [wav.split(".")[0] for wav in os.listdir(LF_SLICE + audio_object.audio_id) if wav.split(".")[1] == "wav"])
+    in_db = set(AudioSlice.objects.filter(
+        audio_id_id=audio_object.audio_id).values_list('audio_slice_id', flat=True))
+
+    only_in_volume = in_volume - in_db
+    only_in_db = in_db - in_volume
+
+    for aud_sid in only_in_volume:  # DB에 insert
+        AudioSlice.save(AudioSlice(aud_sid, calculate_duration_with_file(filepath=LF_WAV + aud_sid, ext="wav"),
+                                   audio_id_id=aud_sid.split("ㅡ")[0]))
+    for j in only_in_db:  # TODO volume 에 받기, 부분 전처리 다시..
+        print(j)
+
+
+def set_audio_response(audio_src, audio_id, ext, duration):
+    response = HttpResponse(open(audio_src, "rb"))
+    response['Content-Type'] = "application/octet-stream"
+    response['Content-Disposition'] = f'attachment; filename="{audio_id}.{ext}"'  # wav만 보내지 않아도 되도록
+    response['audio_id'] = audio_id
+    response['duration'] = duration
     return response
 
 
-@api_view(['POST'])
-def skeletal_after_interval(request):
-    audio_id = request.data.get('audio_id')
-    user_start_sec = request.data['start_sec']
-    user_end_sec = request.data['end_sec']
-
-    record_user(audio_id, user_start_sec, user_end_sec)
-
-    if bool(AudioSlice.objects.filter(audio_slice_id__contains=audio_id)):
-        start_arr = AudioSlice.objects.values_list('start_sec', flat=True)
-        start_audio_slice_id = AudioSlice.objects.get(
-            start_sec=ut.find_nearest(start_arr, user_start_sec)).only('audio_slice_id')
-        end_audio_slice_id = request.data.get('audio_id') + AudioSlice.objects.get(
-            start_sec=ut.find_nearest(start_arr, user_end_sec)).only('audio_slice_id').split("_")[1]
-
-    else:
-        audio_handler = AudioPreprocessor(Audio.objects.get(audio_id=audio_id))
-        audio_handler.preprocess()
-        start_audio_slice_id = audio_handler.get_slice_id(ut.find_nearest(audio_handler.beat_track, user_start_sec))
-        end_audio_slice_id = audio_handler.get_slice_id(ut.find_nearest(audio_handler.beat_track, user_end_sec))
-
-    interval_number = int(end_audio_slice_id.split("_")[1]) - int(start_audio_slice_id.split("_")[1])
-
-
-
-    # Task 1. Similarity process & get into redis
-    # smlr_app = Celery('redis_dao', backend=cc.result_smlr_backend, broker=cc.broker_smlr_url)
-    # smlr_app.config_from_object('celery_config') --꼭 안해도 될 듯
-    # 여기에 혜린이가 한 부분을 어떻게 어떻게 만들어서..
-    # cluster_smlr.apply_async(filter_kmeans_labels, filter_feat, 0, 6))
-
-
-
-    # Task 2. Amplitude process & get into redis
-    # ampl_app = Celery(backend=cc.result_ampl_backend, broker=cc.broker_ampl_url)
-    # get_amplitude.apply_async((3, 56), task_id=audio_id, expires=datetime.now() + timedelta(days=1))
-
-
-    return Response(
-        AudioSliceSerializer(start_audio_slice_id=start_audio_slice_id, end_audio_slice_id=end_audio_slice_id,
-                             interval_number=interval_number).data)
-
-
-# app = Celery('redis_dao', backend=cc.result_backend, broker=cc.broker_url)
-# app.config_from_object('celery_config')
-
-
-# def youtube(request):
-#     # task_id는 audio의 id
-#     audio_id = uuid.uuid4()  # 처음 들어오는 경우, 그게 아니면 database에서 꺼내오기
-#     preprocess.apply_async((3, 56), task_id=audio_id, expires=datetime.now() + timedelta(days=1))
+def convert_sec_to_sid(audio_id, sec, beat_list, option="start"):
+    # 2.6 3.8 10.3 <--- 5.9가 들어오면 start일 경우 1(3,8), 2(10.3)
+    audio_sid_list = AudioSlice.objects.filter(audio_id_id=audio_id).values_list('audio_slice_id', flat=True)
+    if len(audio_sid_list) != len(beat_list):
+        beat_list = AudioSlice.objects.filter(audio_id_id=audio_id).values_list('start_sec', flat=True)
+    for idx, val in enumerate(beat_list):
+        if idx == len(beat_list) - 1:
+            return audio_id + audio_sid_list[idx]
+        if val < sec < beat_list[idx + 1]:
+            return audio_id + audio_sid_list[idx] if option == "start" else audio_id + audio_sid_list[idx + 1]

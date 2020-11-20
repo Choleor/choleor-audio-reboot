@@ -1,57 +1,33 @@
 from audio.dbmanager.preprocessor import *
 from audio.dbmanager.youtube_handler import *
 from audio.utils.reader import *
-from audio.utils.writer import TxtWriter
-import glob
 from configuration.config import *
+from audio.dbmanager.preprocessor import *
+import django
+
+django.setup()
+from audio.models import *
+from django.conf import settings
 
 """
-media volume initializer
+Initialize media volume and database
 """
 
 
-class MediaHandler:
-    csv_reader = CsvReader()
-    audio_meta_list = []
-
+class Initializer:
     @staticmethod
-    def media_initialize(file=test_path + "test.csv"):
-        for _aud_info in MediaHandler.csv_reader.read(file, **{'col1': 'audio_info'})['audio_info']:
-            MediaHandler.audio_meta_list.append(list(write_from_meta(_aud_info)))
-        for meta_list in MediaHandler.audio_meta_list:
-            AudioPreprocessor(*meta_list).preprocess()
-
-
-
-    @staticmethod
-    def drop(audio_id):
-        # volume data 삭제
-        if os.path.exists(LF_WAV + audio_id + ".wav"):
-            os.remove(LF_WAV + audio_id + ".wav")
-
-        for folder_path in [LF_SLICE, LF_CH_BPM]:
-            for file_path in glob.glob(folder_path + '{}{}_*.wav'):
-                try:
-                    os.remove(file_path)
-                except Exception as e:
-                    print("Error while deleting file : ", file_path, e)
-                if os.path.exists(LF_SLICE + audio_id):
-                    os.rmdir(LF_SLICE + audio_id)
-        try:
-            MediaHandler.audio_meta_list.remove(audio_id)
-        except:
-            pass
-        # youtube-dl의 archive file reformat
-        read = TxtReader().read(LP_MEDIA + "archive.txt")
-        try:
-            read.remove("youtube {}\n".format(audio_id))
-        except:
-            pass
-        TxtWriter().write(LP_MEDIA + "archive.txt", read)
-        # self.audio_meta_list.remove(audio_id)
-        # print(self.audio_meta_list)
+    def initialize(file=TEST_CSV):
+        for _aud_info in CsvReader().read(file, **{'col1': 'audio_info'})['audio_info']:
+            _aud_meta = list(write_from_meta(_aud_info))
+            Audio(*(_aud_meta + ["https://www.youtube.com/watch?v=" + _aud_meta[0]])).save()
+            preproc = AudioPreprocessor(*_aud_meta)
+            preproc.preprocess()
+            _slice_duration = preproc.get_bar_duration()
+            print(type(_aud_meta[0]))
+            for i in range(len(_slice_duration)):
+                AudioSlice(*(_aud_meta[0] + "ㅡ" + str(i), _slice_duration[i]), preproc.beat_track[i],
+                           _aud_meta[0]).save()
 
 
 if __name__ == '__main__':
-    MediaHandler().initialize()
-    # Initializer().drop("h5jz8xdpR0M")
+    Initializer().initialize()

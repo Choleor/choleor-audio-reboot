@@ -3,8 +3,6 @@ templates/
 **/migrations/
 .idea/
 db.sqlite3
-archive.txt
-media
 reader.py
 **/*.wav
 *.webm
@@ -15,3 +13,5 @@ dockerfile
 .env
 redis_dao.py
 configuration
+.docker
+**/views_old

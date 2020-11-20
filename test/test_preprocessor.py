@@ -1,8 +1,8 @@
 import glob
 
 from django.test import TestCase
-from audio.services.preprocessor import *
-from audio.services.youtube_handler import *
+from audio.dbmanager.preprocessor import *
+from audio.dbmanager.youtube_handler import *
 
 
 class PreprocessorTest(TestCase):
@@ -11,7 +11,7 @@ class PreprocessorTest(TestCase):
     _bar_duration_list = None
 
     def setUp(self) -> None:
-        PreprocessorTest.preprocessor = AudioPreprocessor(*write_from_meta("Ariana Grande"))
+        PreprocessorTest.preprocessor = AudioPreprocessor(**write_from_meta("Ariana Grande"))
 
     def test_track_beat(self):
         PreprocessorTest._beat_track_res = [2.990813, 6.310333, 9.825313, 13.138042, 16.491521, 19.816833, 23.151042,
@@ -31,9 +31,9 @@ class PreprocessorTest(TestCase):
     def test_get_slice_id(self):
         if PreprocessorTest._beat_track_res is None:
             self.test_track_beat()
-        PreprocessorTest.preprocessor._beat_track = PreprocessorTest._beat_track_res
+        PreprocessorTest.preprocessor.beat_track = PreprocessorTest._beat_track_res
         _executed_res = PreprocessorTest.preprocessor.get_slice_id(6.310333)
-        self.assertEquals("Xsb9flAEymA_1", _executed_res)
+        self.assertEquals("Xsb9flAEymAㅡ1", _executed_res)
 
     def test_get_bar_duration(self):
         _expected_res = [3.31952, 3.5149799999999995, 3.312729000000001, 3.3534789999999983, 3.3253120000000003,
@@ -50,29 +50,29 @@ class PreprocessorTest(TestCase):
                          3.297395999999992, 3.722709000000009]
         if PreprocessorTest._beat_track_res is None:
             self.test_track_beat()
-        PreprocessorTest.preprocessor._beat_track = PreprocessorTest._beat_track_res
+        PreprocessorTest.preprocessor.beat_track = PreprocessorTest._beat_track_res
         PreprocessorTest.preprocessor._bar_duration_list = PreprocessorTest.preprocessor.get_bar_duration()
         self.assertEquals(_expected_res, PreprocessorTest.preprocessor._bar_duration_list)
 
     def test_slice_by_beat(self):
         if PreprocessorTest._beat_track_res is None:
             self.test_track_beat()  # beat tracking 정보를 초기화
-        PreprocessorTest.preprocessor._beat_track = PreprocessorTest._beat_track_res
+        PreprocessorTest.preprocessor.beat_track = PreprocessorTest._beat_track_res
         PreprocessorTest.preprocessor.slice_by_beat()
         self.assertEquals(48, len(
-            glob.glob(c.LF_SLICE + "Xsb9flAEymA/Xsb9flAEymA_*.wav")))  # slice마다의 품질을 확인할 길이 없으므로 잘라진 파일 개수로 비교
+            glob.glob(LF_SLICE + "Xsb9flAEymA/Xsb9flAEymAㅡ*.wav")))  # slice마다의 품질을 확인할 길이 없으므로 잘라진 파일 개수로 비교
 
     def test_change_bar_speed(self):
         if PreprocessorTest._beat_track_res is None:
             self.test_track_beat()  # beat tracking 정보를 초기화
-        PreprocessorTest.preprocessor._beat_track = PreprocessorTest._beat_track_res
+        PreprocessorTest.preprocessor.beat_track = PreprocessorTest._beat_track_res
         for i in range(0, len(PreprocessorTest._beat_track_res) - 1):
-            PreprocessorTest.preprocessor.change_bar_speed("Xsb9flAEymA_" + str(i))
-        self.assertEquals(48, len(glob.glob(c.LF_SLICE + "Xsb9flAEymA/Xsb9flAEymA_*.wav")))
+            PreprocessorTest.preprocessor.change_bar_speed("Xsb9flAEymAㅡ" + str(i))
+        self.assertEquals(48, len(glob.glob(LF_SLICE + "Xsb9flAEymA/Xsb9flAEymAㅡ*.wav")))
 
     def test_preprocess(self):
         PreprocessorTest.preprocessor.preprocess()
-        sliced_file_n = len(glob.glob(c.LF_SLICE + "Xsb9flAEymA/Xsb9flAEymA_*.wav"))
-        bpm_changed_file_n = len(glob.glob(c.LF_CH_BPM + "Xsb9flAEymA/Xsb9flAEymA_*.wav"))
+        sliced_file_n = len(glob.glob(LF_SLICE + "Xsb9flAEymA/Xsb9flAEymAㅡ*.wav"))
+        bpm_changed_file_n = len(glob.glob(LF_CH_BPM + "Xsb9flAEymA/Xsb9flAEymAㅡ*.wav"))
         self.assertEquals(48, sliced_file_n)
         self.assertEquals(48, bpm_changed_file_n)

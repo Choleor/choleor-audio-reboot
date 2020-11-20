@@ -1,11 +1,11 @@
 from django.test.testcases import TestCase
-from audio.services.youtube_handler import *
+from audio.dbmanager.youtube_handler import *
 
 
 class YoutubeHandlerTest(TestCase):
     def test_write_from_meta(self):
         self.assertEquals(("5-_Uv8ggjk8", "DJ Snake - Taki Taki (Lyrics) ft. Selena Gomez, Ozuna, Cardi B", 218),
-                          write_from_meta("Taki Taki", "CardiB"))
+                          write_from_meta("Taki Taki - CardiB"))
 
     def test_write_from_link(self):
         self.assertEquals(("JZ9pHBEUWPo", "The Greatest Showman - Never Enough (Vídeo con letra)", 199),
