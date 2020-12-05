@@ -1,10 +1,12 @@
 import librosa
 import numpy as np
+import pickle
+from audio.dbmanager.redis_dao import AmplitudeRedisHandler
 
 
 class AmplitudeProcessor:
     @staticmethod
-    def process_amplitude(file):
+    def process(file):
         music, fs = librosa.load(file)
         music_stft = librosa.stft(music)
         music_amp = librosa.amplitude_to_db(abs(music_stft))
@@ -33,3 +35,11 @@ class AmplitudeProcessor:
 
             amp_list.append(step)  # 자른 박자 안에서 평균 진폭 구하기
         return amp_list
+
+
+if __name__ == '__main__':
+    print(AmplitudeProcessor.process("/home/jihee/choleor_media/audio/SLICE/QM8HngracYY/QM8HngracYYㅡ14.wav"))
+    for i in range(9, 17):
+        _list = AmplitudeProcessor.process(f"/home/jihee/choleor_media/audio/SLICE/GNGbmg_pVlQ/GNGbmg_pVlQㅡ{i}.wav")
+        pi_ = pickle.dumps(_list)
+        AmplitudeRedisHandler.dao.set(f"GNGbmg_pVlQㅡ{i}", pi_)

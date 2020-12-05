@@ -14,7 +14,7 @@ def write_from_meta(info):
 def search_url_from_meta(info):
     try:
         url = "https://www.youtube.com/watch?v=" + \
-              YoutubeSearch("{} Official audio Lyrics".format(info), max_results=1).search()[0]["id"]
+              YoutubeSearch("{} audio Lyrics".format(info), max_results=1).search()[0]["id"]
         return url
     except Exception as e:
         print('error', e)
@@ -54,9 +54,9 @@ def get_video_duration(download_url):
     try:
         with youtube_dlc.YoutubeDL(config.ydl_options) as ydl:
             return ydl.extract_info(download_url, download=False)['duration']
-
     except Exception as e:
         print('error', e)
 
+
 if __name__ == '__main__':
-    print(write_from_link("https://www.youtube.com/watch?v=lMuLNp5xW8w"))
+    print(write_from_link("https://www.youtube.com/watch?v=NNM2kEBGiRs"))

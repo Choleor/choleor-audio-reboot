@@ -20,11 +20,18 @@ class AudioPreprocessor:
         return self._audio_id + "ㅡ" + str(self.beat_track.index(start_sec))
 
     def track_beat(self):
-        print(self._audio_id)
-        self.beat_track = [float(val.strip("\t")) for idx, val in
+        print(self._audio_id)  # TODO idx 0으로 변환
+        self.beat_track = []
+        init_beat_arr = enumerate(
+                ut.get_console_output('aubio beat "{}/{}.wav"'.format(LF_WAV, self._audio_id)).splitlines())
+        # for idx, val in enumerate(init_beat_arr):
+        #     if idx % 8 == 2:
+        #         self.beat_track.append(float(val.strip("\t")))
+
+        self.beat_track = [float(val.strip("\t"))-0.07 for idx, val in
                            enumerate(ut.get_console_output(
                                'aubio beat "{}/{}.wav"'.format(LF_WAV, self._audio_id)).splitlines())
-                           if idx % 8 == 0]
+                           if idx % 8 == 7]
         return self.beat_track
 
     def get_bar_duration(self):
@@ -66,7 +73,7 @@ class AudioPreprocessor:
                            r.channels, r.samplerate) as w:
                 phasevocoder(r.channels, speed=target_bpm / bar_bpm).run(r, w)
 
-        # print("only came " + audio_slice_id)
+        print("only came " + audio_slice_id)
 
     def insert_on_db(self, idx_n):
         if not Audio.objects.filter(audio_id=self._audio_id).exists():
@@ -83,11 +90,11 @@ class AudioPreprocessor:
 
         # change_bar_speed를 for문으로 묶어주는 로컬함수 -> w
         # within_iteration
-        # def __change_bars_speed(x, y):
-        #     for i in range(x, y):
-        #         self.change_bar_speed(audio_slice_id=self._audio_id + "ㅡ" + str(i))
-        #
-        # single_process_to_multi_process(len(self.beat_track), 4, __change_bars_speed)
+        def __change_bars_speed(x, y):
+            for i in range(x, y):
+                self.change_bar_speed(audio_slice_id=self._audio_id + "ㅡ" + str(i))
+
+        single_process_to_multi_process(len(self.beat_track), 4, __change_bars_speed)
 
         for i in range(len(self.beat_track) - 1):
             self.change_bar_speed(audio_slice_id=self._audio_id + "ㅡ" + str(i))
@@ -101,8 +108,8 @@ class AudioPreprocessor:
         return self.beat_track
 
 
-# if __name__ == '__main__':
-#     Dropper.drop("cnyCcF20pRo")
-#     print((write_from_meta("Ariana Grande - 34+35")))
-#     aud_proc = AudioPreprocessor('cnyCcF20pRo', 'Ariana Grande - 34+35 (lyric video)', 174).preprocess()
-#     print(aud_proc)
+if __name__ == '__main__':
+    # Dropper.drop("GNGbmg_pVlQ")
+    # print((write_from_meta("Selena Gomez - Back to You (Lyrics)")))
+    aud_proc = AudioPreprocessor('GNGbmg_pVlQ', 'Selena Gomez - Back to You (Lyrics)', 208).preprocess()
+    print(aud_proc)

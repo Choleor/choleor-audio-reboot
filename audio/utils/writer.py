@@ -1,6 +1,7 @@
 import abc
 import sys
 from audio.utils.reader import *
+from audio.dbmanager.youtube_handler import search_url_from_meta
 from configuration.config import *
 
 
@@ -35,37 +36,9 @@ class CsvWriter(Writer):
         with open(file, 'w', encoding="utf-8") as wf:
             csv.DictWriter(wf, keys)
 
-    def append_new_column(self, file, out=None, **kwargs):
-        if not bool(out):
-            out = file
 
-        __dict__ = kwargs['dict']
-        (__keys__, __vals__) = (list(__dict__.keys()), list(__dict__.values()))
-
-        try:
-            arr = [{k: __dict__[k][i] for k in __keys__} for i in range(len(__vals__[0]))]
-            print(arr)
-            with open(file, 'r', encoding="utf-8") as rf, open(out, 'w', encoding="utf-8") as wf:
-                dict_reader = csv.DictReader(rf, delimiter='\t')
-                # 원하는 column 추가
-                org_fieldnames = dict_reader.fieldnames[0]
-                new_fieldnames = org_fieldnames + "," + ",".join(__keys__)
-
-                writer_csv = csv.DictWriter(wf, list(new_fieldnames.split(",")), delimiter=',', lineterminator='\n')
-                writer_csv.writeheader()
-
-                i = 0
-                for existed in dict_reader:
-                    rdict = {field: item for (field, item) in
-                             zip(org_fieldnames.split(","), existed[org_fieldnames].split(","))}
-                    rdict.update(arr[i]) if i < len(arr) else rdict
-                    writer_csv.writerow(rdict)
-                    print(rdict)
-                    i += 1
-            return 0
-        except FileNotFoundError:
-            sys.stderr.write("No such text file: %s\n" % file)
-            return 1
+if __name__ == '__main__':
+    CsvWriter().write()
 
 #
 # test_path = "C:/Users/Jihee/PycharmProjects/choleor/audio/testfile/"

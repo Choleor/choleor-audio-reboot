@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     path('meta', views.meta),
-    path('youtube', views.url),
+    path('youtube', views.y_url),
     path('file', views.file),
-    # path('detail', views.interval_choice),
+    path('interval', views.interval),
 ]

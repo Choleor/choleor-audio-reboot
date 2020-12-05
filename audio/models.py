@@ -4,9 +4,9 @@ from configuration.config import *
 from audio.utils.utils import find_nearest
 
 
-# """
-# Activate configuration code below only when not running server
-# """
+"""
+Activate configuration code below only when not running server
+"""
 # import os
 # import django
 # os.environ['DJANGO_SETTINGS_MODULE'] = 'choleor_audio.settings'
@@ -39,14 +39,17 @@ class SingletonModel(models.Model):
 
 
 class Audio(SingletonModel):
-    audio_id = models.CharField(primary_key=True, max_length=30)
+    audio_id = models.CharField(primary_key=True, max_length=45)
     title = models.CharField(max_length=100)
     duration = models.FloatField(default=0.00)
     download_url = models.URLField(max_length=150)
 
+    def __str__(self):
+        return self.audio_id
+
 
 class AudioSlice(SingletonModel):
-    audio_slice_id = models.CharField(primary_key=True, max_length=35)
+    audio_slice_id = models.CharField(primary_key=True, max_length=50)
     duration = models.FloatField(default=-1.00)
     start_sec = models.FloatField(default=-1.00)  # TODO -> deprecate
     audio_id = models.ForeignKey(Audio, on_delete=models.CASCADE)

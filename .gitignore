@@ -15,3 +15,7 @@ redis_dao.py
 configuration
 .docker
 **/views_old
+*.yaml
+*.bak
+*.dat
+*.dir

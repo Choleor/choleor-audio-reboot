@@ -1,14 +1,14 @@
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import StreamingHttpResponse, FileResponse, HttpResponse, JsonResponse
+from django.http import StreamingHttpResponse, HttpResponse
 from rest_framework.response import Response
 from .models import AudioSlice, Audio
 from .serializers import AudioSerializer, AudioSliceSerializer
 from rest_framework.decorators import api_view
 from rest_framework.decorators import parser_classes
-from rest_framework.parsers import MultiPartParser, FileUploadParser
+from rest_framework.parsers import MultiPartParser
 from .utils import utils as ut
 from audio.dbmanager.redis_dao import *
-from audio.dbmanager.preprocessor import AudioPreprocessor
+from audio.services.preprocessor import AudioPreprocessor
 from audio.dbmanager.youtube_handler import *
 import re
 import time
@@ -57,6 +57,7 @@ VAL [ 7 2 9 8 6 ] <-- 점수 list
 """
 ===================================================================================================================
 """
+
 
 # def upload_file(request):
 #     if request.method == 'POST':
@@ -187,10 +188,19 @@ def skeletal_after_interval(request):
 @api_view(['POST'])
 def get_music(request):
     with open(request.data.get('music'), 'rb') as f:
-        response = HttpResponse(f, content_type='application/octet-stream')
         # 필요한 응답헤더 세팅
-        response['Content-Disposition'] = 'attachment; filename="{}"'.format(request.data.get('music'))
-        return response
+        return set_audio_response('오디오파일 경로, wav 확장자까지 꼭 입력할 것', "오디오 파일 id(youtube id)", "wav",
+                                  "오디오파일 duration float 형태로")
+
+
+def set_audio_response(audio_src, audio_id, ext, duration):
+    response = HttpResponse(open(audio_src, "rb"))
+    response["Access-Control-Allow-Origin"] = "*"
+    response['Content-Type'] = "application/octet-stream"
+    response['Content-Disposition'] = f'attachment; filename="{audio_id}.{ext}"'  # wav만 보내지 않아도 되도록
+    response['audio_id'] = audio_id
+    response['duration'] = duration
+    return response
 
     # data = {
     #     "audio_id": "dfsdff",
@@ -201,3 +211,5 @@ def get_music(request):
     # response = HttpResponse(content=open(request.data.get('music'), 'rb'))
     # response['Content-Type'] = 'application/json'
     # return FileResponse(open(request.data.get('music'), 'rb'))
+
+

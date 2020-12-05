@@ -1,13 +1,10 @@
 from __future__ import absolute_import, unicode_literals
-from audio.dbmanager.preprocessor import AudioPreprocessor
-from configuration.config import LF_WAV
+from audio.services.preprocessor import AudioPreprocessor
 from audio.utils.utils import get_console_output as to_console
-from audio.celery_tas import app
 from audio.services.smlr_processor import *
 from audio.services.ampl_processor import *
-from audio.dbmanager.youtube_handler import *
 from audio.dbmanager.dropper import *
-from celery import shared_task
+from audio.dbmanager.youtube_handler import *
 
 
 # from celery import Celery
@@ -32,13 +29,15 @@ def handle_uploaded_file(file, file_name, extension="wav", path=LF_WAV):
 
 @app.task(name="amplitude_process", ignore_result=True)
 def process_amplitude_d(_audio_slice_id):
-    return AmplitudeProcessor.process_amplitude(_audio_slice_id)
+    return AmplitudeProcessor.process(_audio_slice_id)
 
 
 @app.task(name="similarity_process", ignore_result=True)
 def process_similarity_d(_audio_slice_id):
     #  군집 개수, 음악 파일의 경로, 음악 파일 이름, 유사한 노래 상위 몇개까지 출력할지
-    return SimilarityProcessor(5, LF_WAV + _audio_slice_id + "/", _audio_slice_id + ".wav", 40).process_similarity()
+    return [i + ":" + v for i, v in
+            SimilarityProcessor(5, LF_WAV + _audio_slice_id.split("ㅡ")[0] + "/", _audio_slice_id + ".wav",
+                                40).process().items()]
 
 
 @app.task(name="add", ignore_result=True)
@@ -58,7 +57,8 @@ if __name__ == '__main__':
     # print(SimilarityRedisHandler.get_similarity_list("other2"))
     Dropper.drop("cnyCcF20pRo")
     write_from_link("https://www.youtube.com/watch?v=cnyCcF20pRo")
-    res = preprocess_d.apply_async(args=['cnyCcF20pRo', 'Ariana Grande - 34+35 (lyric video)', 174], task_id="nnnnnhdddddd")
+    res = preprocess_d.apply_async(args=['cnyCcF20pRo', 'Ariana Grande - 34+35 (lyric video)', 174],
+                                   task_id="nnnnnhdddddd")
     print(ex2.state, ex2.get())
     print(res.state, res.get())
 

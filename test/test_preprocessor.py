@@ -1,7 +1,5 @@
-import glob
-
 from django.test import TestCase
-from audio.dbmanager.preprocessor import *
+from audio.services.preprocessor import *
 from audio.dbmanager.youtube_handler import *
 
 

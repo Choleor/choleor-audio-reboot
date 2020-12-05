@@ -1,6 +1,7 @@
 import os, django
 from configuration import config as c, redis_config as rc, mysql_config as mc
 from audio.celeryconfig import *
+from corsheaders.defaults import default_headers
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,9 +26,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
     'django_redis',
     'django_celery_results',
+    'rest_framework',
+    'corsheaders',
     'audio'
 ]
 
@@ -39,6 +41,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.BrokenLinkEmailsMiddleware',
+    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'choleor_audio.urls'
@@ -75,6 +80,13 @@ CACHES = {
     "amplitude": rc.REDIS_AMPL_INFO,
     "user": rc.REDIS_USER_INFO
 }
+
+
+CORS_EXPOSE_HEADERS = ["audio_id", "duration"]
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_HEADERS = default_headers + (
+    'Access-Control-Allow-Origin',
+)
 
 AUTH_PASSWORD_VALIDATORS = [
     {

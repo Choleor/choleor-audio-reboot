@@ -4,15 +4,14 @@ from numpy.linalg import norm
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+from audio.dbmanager.redis_dao import SimilarityRedisHandler
+import pickle
 import librosa.display, librosa
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+from audio.models import *
 from sklearn.metrics.pairwise import cosine_similarity
-
-
-# calculate similarity
-def cos_sim(A, B):
-    return dot(A, B) / (norm(A) * norm(B))
+import glob
 
 
 class SimilarityProcessor:
@@ -22,10 +21,17 @@ class SimilarityProcessor:
         self.file = file
         self.n = n
 
+    @staticmethod
+    def cos_sim(A, B):
+        return dot(A, B) / (norm(A) * norm(B))
+
     def get_file_list(self):
+        song_list = []
         file_list = []
-        for file in os.listdir(self.file_path):
-            file_list.append(file)
+        for song in os.listdir(self.file_path):
+            song_list.append(song)
+            for slice in os.listdir(self.file_path + str(song)):
+                file_list.append(slice)
         return file_list
 
     # Extract audio Features: MFCC
@@ -36,22 +42,30 @@ class SimilarityProcessor:
         for i in range(20):
             columns.append("mfcc" + str(i + 1))
 
-        for file in file_list:
-            audio, fs = librosa.load(self.file_path + str(file))
-            mfcc_audio = librosa.feature.mfcc(audio, sr=fs)
+        song_list = []
+        data = None
+        mfcc_audio = None
 
-            pca = PCA(n_components=1, whiten=True)  # use pca
-            X_pca = pca.fit_transform(mfcc_audio)
-            fin_pca = []
+        for song in os.listdir(self.file_path):
+            song_list.append(song)
+            for slice in os.listdir(self.file_path + str(song)):
+                audio, fs = librosa.load(self.file_path + str(song) + "/" + str(slice))
+                mfcc_audio = librosa.feature.mfcc(audio, sr=fs)
 
-            for index in range(len(X_pca)):
-                fin_pca.append(X_pca[index, 0])
-            df_pca = pd.Series(fin_pca)
+                pca = PCA(n_components=1, whiten=True)  # use pca
+                X_pca = pca.fit_transform(mfcc_audio)
+                fin_pca = []
 
-            X = pd.concat([X, df_pca], axis=1)
+                for index in range(len(X_pca)):
+                    fin_pca.append(X_pca[index, 0])
+                df_pca = pd.Series(fin_pca)
 
-            data = X.T.copy()
-            data.columns = columns
+                X = pd.concat([X, df_pca], axis=1)
+
+                data = X.T.copy()
+                data.columns = columns
+
+                print(slice + " completed")
 
         data.index = [file for file in file_list]
 
@@ -88,9 +102,9 @@ class SimilarityProcessor:
         inertia = []
         K = range(1, 16)
         for k in K:
-            kmeans_model = KMeans(n_clusters=k).fit(data)
-            kmeans_model.fit(data)
-            inertia.append(kmeans_model.inertia_)
+            kmeanModel = KMeans(n_clusters=k).fit(data)
+            kmeanModel.fit(data)
+            inertia.append(kmeanModel.inertia_)
         # print (model.inertia_)
 
         # Plot the elbow
@@ -110,7 +124,7 @@ class SimilarityProcessor:
             seg1_2d = seg1.reshape(-1, 1)  # 차원 축소
             seg2_2d = seg2.reshape(-1, 1)
 
-            sim = cos_sim(np.squeeze(seg1_2d), np.squeeze(seg2_2d))
+            sim = SimilarityProcessor.cos_sim(np.squeeze(seg1_2d), np.squeeze(seg2_2d))
             sim = sim * 100  # 퍼센트(%) 단위로 나타냄
             sim = round(sim, 2)  # 소수 둘째자리에서 반올림
 
@@ -122,12 +136,12 @@ class SimilarityProcessor:
 
         return final_dic[1:self.n]
 
-    def process_similarity(self):
+    def process(self):
         new_data = self.get_feature_file()
-        new_data.to_csv('audio_feature_test.csv', mode='a', header=False)
+        new_data.to_csv('/home/jihee/choleor_media/audio/audio_feature.csv', mode='a', header=False)
 
         # Load audio_feature.csv file
-        feat_data = pd.read_csv("audio_feature_test.csv", index_col=[0])
+        feat_data = pd.read_csv("/home/jihee/choleor_media/audio/audio_feature.csv", encoding='utf-8', index_col=[0])
 
         # KMeans Clustering
         model = KMeans(self.n_clusters)
@@ -141,6 +155,7 @@ class SimilarityProcessor:
 
         filter_feat_data = feat_data.iloc[cluster_index]
 
+        idx = 0
         for i in range(len(filter_feat_data)):
             if filter_feat_data.index[i] == self.file:  # 유사도 비교를 원하는 파일명
                 idx = i
@@ -148,14 +163,32 @@ class SimilarityProcessor:
 
 
 if __name__ == '__main__':
-    """DB에 있는 모든 노래 feature 구할 때는 주석 풀기
-    all=Similarity(5,"C:/","",20) #"C:/"부분에 디렉토리 넣기
-    fileList=all.getFileList()
-    data = all.getFeatureAll(fileList)
-    data.to_csv("audio_feature.csv", mode='w') 
-    """
+    # DB에 있는 모든 노래 feature 구할 때는 주석 풀기
+    # all = SimilarityProcessor(5, '/home/jihee/choleor_media/audio/SLICE/', "", 20)
+    # file_list = all.get_file_list()
+    # print(len(file_list))
+    # data = all.get_all_feature(file_list)
+    # data.to_csv("/home/jihee/choleor_media/audio/audio_feature.csv", mode='w')
 
     # user input 노래 구간파일 하나 유사도 구하기
     # Similarity 생성자 안에 들어갈 내용: 군집 개수, 음악 파일의 경로, 음악 파일 이름, 유사한 노래 상위 몇개까지 출력할지
-    user = SimilarityProcessor(5, "nO3-QHELKU0_Kill This Love/", "nO3-QHELKU0_29.wav", 20)
-    user.process_similarity()
+    # [{파일명: 점수}, {:}] 형태로 뽑힘
+
+    audio_ids = [i for i in Audio.objects.all().values_list('audio_id', flat=True)]
+    folders = ["/home/jihee/choleor_media/audio/SLICE/{}/".format(i) for i in audio_ids]
+    # print(folders)
+    # for i,k in enumerate(folders):
+    #     for j in glob.glob("{}/*.wav".format(i)):
+
+    # dict_list = SimilarityProcessor(5, "/home/jihee/choleor_media/audio/SLICE/k8ha7zI2P0U/", "k8ha7zI2P0Uㅡ12.wav",
+    #                                 200).process()
+    # print(dict_list)
+
+    # dict_list = SimilarityProcessor(5, "nO3-QHELKU0_Kill This Love/", "nO3-QHELKU0_29.wav", 50).process()
+
+    for i in range(9, 17):
+        dict_list = SimilarityProcessor(5, "/home/jihee/choleor_media/audio/SLICE/GNGbmg_pVlQ/", f"GNGbmg_pVlQㅡ{i}.wav",
+                                        200).process()
+        print(dict_list)
+        pi_ = pickle.dumps(dict_list)
+        SimilarityRedisHandler.dao.set(f"GNGbmg_pVlQㅡ{i}", pi_)
