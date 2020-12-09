@@ -7,7 +7,7 @@ reader.py
 **/*.wav
 *.webm
 *.opus
-requirements.txt
+requirements3.txt
 docker-compose.yml
 dockerfile
 .env
@@ -19,3 +19,8 @@ configuration
 *.bak
 *.dat
 *.dir
+rediswq-dockerfile
+mysql-dockerfile
+**/*.txt
+*.sql
+workspace.code-workspace

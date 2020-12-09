@@ -12,22 +12,17 @@ def write_from_meta(info):
 
 
 def search_url_from_meta(info):
-    try:
-        url = "https://www.youtube.com/watch?v=" + \
-              YoutubeSearch("{} audio Lyrics".format(info), max_results=1).search()[0]["id"]
-        return url
-    except Exception as e:
-        print('error', e)
+    search_res = YoutubeSearch(f"{info} lyrics audio" if "remix" not in info else info, max_results=3).search()
+    for i in search_res:
+        if "M/V" not in i["id"] or "Music Video" not in i["id"]:
+            return "https://www.youtube.com/watch?v=" + i["id"]
 
 
 def write_from_link(download_url):
     try:
         with youtube_dlc.YoutubeDL(config.ydl_options) as ydl:
             meta = ydl.extract_info(download_url, download=True)
-            if meta['formats'][0]['filesize'] > config.max_file_size:
-                raise Exception("File too large")
             return meta['id'], meta['title'], meta['duration']
-            # return {"audio_id": meta['id'], "title": meta['title'], "duration": meta['duration']}
     except Exception as e:
         print('error', e)
 
@@ -60,3 +55,8 @@ def get_video_duration(download_url):
 
 if __name__ == '__main__':
     print(write_from_link("https://www.youtube.com/watch?v=NNM2kEBGiRs"))
+    # print(search_url_from_meta("moves like jagger"))
+    # print(search_url_from_meta("beyonce"))
+    # print(search_url_from_meta("청하 - snapping"))
+    # print("https://www.youtube.com/watch?v="+YoutubeSearch("Rain on me - Lady gaga", max_results=1).search()[0]["id"])
+    print(write_from_link("http://www.youtube.com/watch?v=M3ctXZBingM"))

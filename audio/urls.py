@@ -6,4 +6,5 @@ urlpatterns = [
     path('youtube', views.y_url),
     path('file', views.file),
     path('interval', views.interval),
+    path('check', views.check)
 ]

@@ -1,16 +1,15 @@
 from django.db import models
 from django.core.cache import cache
 from configuration.config import *
-from audio.utils.utils import find_nearest
-
 
 """
-Activate configuration code below only when not running server
+Activate configuration code below only when not running server #TODO
 """
-# import os
-# import django
-# os.environ['DJANGO_SETTINGS_MODULE'] = 'choleor_audio.settings'
-# django.setup()
+import os
+import django
+os.environ['DJANGO_SETTINGS_MODULE'] = 'choleor_audio.settings'
+django.setup()
+# TODO kubernetes comment
 
 
 class SingletonModel(models.Model):
@@ -42,6 +41,7 @@ class Audio(SingletonModel):
     audio_id = models.CharField(primary_key=True, max_length=45)
     title = models.CharField(max_length=100)
     duration = models.FloatField(default=0.00)
+    bpm = models.FloatField(default=0.00)
     download_url = models.URLField(max_length=150)
 
     def __str__(self):

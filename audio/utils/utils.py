@@ -59,7 +59,3 @@ def temp(x, y, *args, **kwargs):
     print(y)
     print(args)
     print(kwargs)
-
-
-if __name__ == '__main__':
-    within_iteration(temp, 5, lambda_list=[(lambda x: x ** 2), (lambda y: y * 3)], args_list=[2, 4])
