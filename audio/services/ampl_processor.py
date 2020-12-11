@@ -1,7 +1,11 @@
 import librosa
 import numpy as np
 import pickle
+from configuration.config import LF_SLICE
 from audio.dbmanager.redis_dao import AmplitudeRedisHandler
+import warnings
+
+warnings.filterwarnings('ignore')
 
 
 class AmplitudeProcessor:
@@ -36,10 +40,16 @@ class AmplitudeProcessor:
             amp_list.append(step)  # 자른 박자 안에서 평균 진폭 구하기
         return amp_list
 
+    @staticmethod
+    def process_for_user(audioname, partition, start_idx, end_idx):
+        for k in range(start_idx, end_idx + 1):
+            _list = AmplitudeProcessor.process(f"{LF_SLICE}{partition}/{audioname}/{audioname}ㅡ{k}.wav")
+            pi_ampl = pickle.dumps(_list)
+            AmplitudeRedisHandler.dao.set(f"{partition}:{audioname}ㅡ{k}", pi_ampl)
+
 
 if __name__ == '__main__':
-    print(AmplitudeProcessor.process("/home/jihee/choleor_media/audio/SLICE/QM8HngracYY/QM8HngracYYㅡ14.wav"))
-    for i in range(9, 17):
-        _list = AmplitudeProcessor.process(f"/home/jihee/choleor_media/audio/SLICE/GNGbmg_pVlQ/GNGbmg_pVlQㅡ{i}.wav")
-        pi_ = pickle.dumps(_list)
-        AmplitudeRedisHandler.dao.set(f"GNGbmg_pVlQㅡ{i}", pi_)
+    AmplitudeProcessor.process_for_user("DKpfWL0THsg", 0, 14, 26)
+    print("===========================================================")
+    for i in range(14, 27):
+        print(pickle.loads(AmplitudeRedisHandler.dao.get(f"0:DKpfWL0THsgㅡ{i}")))

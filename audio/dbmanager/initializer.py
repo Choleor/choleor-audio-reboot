@@ -1,5 +1,6 @@
 from audio.services.preprocessor import *
 from audio.dbmanager.youtube_handler import *
+from audio.dbmanager.dropper import *
 from audio.utils.reader import *
 # import django
 # django.setup()
@@ -52,5 +53,9 @@ class Initializer:
                 Dropper.drop(audio_id)
 
 
-if __name__ == '__main__':
-    Initializer.initialize()
+# if __name__ == '__main__':
+#     Initializer.initialize()
+
+    # a = CsvReader().read("/home/jihee/choleor_media/csv/output.csv", col1="audio_id")['audio_id']
+    # print(len(a))
+    # print(len(set(a)))

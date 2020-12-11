@@ -54,9 +54,9 @@ def get_video_duration(download_url):
 
 
 if __name__ == '__main__':
-    print(write_from_link("https://www.youtube.com/watch?v=NNM2kEBGiRs"))
+    print(write_from_link("https://www.youtube.com/watch?v=DKpfWL0THsg&t=2s"))
     # print(search_url_from_meta("moves like jagger"))
     # print(search_url_from_meta("beyonce"))
     # print(search_url_from_meta("청하 - snapping"))
     # print("https://www.youtube.com/watch?v="+YoutubeSearch("Rain on me - Lady gaga", max_results=1).search()[0]["id"])
-    print(write_from_link("http://www.youtube.com/watch?v=M3ctXZBingM"))
+    # print(write_from_link("http://www.youtube.com/watch?v=M3ctXZBingM"))

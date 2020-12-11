@@ -3,16 +3,19 @@ from numpy import dot
 from numpy.linalg import norm
 import pandas as pd
 import matplotlib.pyplot as plt
-import os
-from audio.dbmanager.redis_dao import SimilarityRedisHandler
-import pickle
 import librosa.display, librosa
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from audio.models import *
-from sklearn.metrics.pairwise import cosine_similarity
-import glob
+import sys
+# from sklearn.metrics.pairwise import cosine_similarity
+# import glob
+# import os
+from audio.dbmanager.redis_dao import SimilarityRedisHandler
+import pickle
+import warnings
 
+warnings.filterwarnings('ignore')
 
 class SimilarityProcessor:
     def __init__(self, n_clusters, file_path, file, n):
@@ -64,9 +67,7 @@ class SimilarityProcessor:
 
                 data = X.T.copy()
                 data.columns = columns
-
-                print(slice + " completed")
-
+                # print(slice + " completed")
         data.index = [file for file in file_list]
 
         return data
@@ -138,10 +139,10 @@ class SimilarityProcessor:
 
     def process(self):
         new_data = self.get_feature_file()
-        new_data.to_csv('/home/jihee/choleor_media/audio/audio_feature.csv', mode='a', header=False)
+        new_data.to_csv('/home/jihee/choleor_media/csv/audio_feature.csv', mode='a', header=False)
 
         # Load audio_feature.csv file
-        feat_data = pd.read_csv("/home/jihee/choleor_media/audio/audio_feature.csv", encoding='utf-8', index_col=[0])
+        feat_data = pd.read_csv("/home/jihee/choleor_media/csv/audio_feature.csv", encoding='utf-8', index_col=[0])
 
         # KMeans Clustering
         model = KMeans(self.n_clusters)
@@ -161,34 +162,24 @@ class SimilarityProcessor:
                 idx = i
         return self.cluster_sim(filter_feat_data, idx)
 
+    @staticmethod
+    def initialize():
+        all = SimilarityProcessor(5, f'{LF_SLICE}/0/', "", 20)
+        file_list = all.get_file_list()
+        data = all.get_all_feature(file_list)
+        data.to_csv(f"/home/jihee/choleor_media/csv/audio_feature.csv", mode='w')
+
+    @staticmethod
+    def process_for_user(audioname, partition, start_idx, end_idx):
+        for i in range(start_idx, end_idx + 1):
+            dict_list = SimilarityProcessor(5, f"{LF_SLICE}{partition}/{audioname}/", f"{audioname}ㅡ{i}.wav",
+                                            200).process()
+            pi_smlr = pickle.dumps(dict_list)
+            SimilarityRedisHandler.dao.set(f"{partition}:{audioname}ㅡ{i}", pi_smlr)
+
 
 if __name__ == '__main__':
-    # DB에 있는 모든 노래 feature 구할 때는 주석 풀기
-    # all = SimilarityProcessor(5, '/home/jihee/choleor_media/audio/SLICE/', "", 20)
-    # file_list = all.get_file_list()
-    # print(len(file_list))
-    # data = all.get_all_feature(file_list)
-    # data.to_csv("/home/jihee/choleor_media/audio/audio_feature.csv", mode='w')
-
-    # user input 노래 구간파일 하나 유사도 구하기
-    # Similarity 생성자 안에 들어갈 내용: 군집 개수, 음악 파일의 경로, 음악 파일 이름, 유사한 노래 상위 몇개까지 출력할지
-    # [{파일명: 점수}, {:}] 형태로 뽑힘
-
-    audio_ids = [i for i in Audio.objects.all().values_list('audio_id', flat=True)]
-    folders = ["/home/jihee/choleor_media/audio/SLICE/{}/".format(i) for i in audio_ids]
-    # print(folders)
-    # for i,k in enumerate(folders):
-    #     for j in glob.glob("{}/*.wav".format(i)):
-
-    # dict_list = SimilarityProcessor(5, "/home/jihee/choleor_media/audio/SLICE/k8ha7zI2P0U/", "k8ha7zI2P0Uㅡ12.wav",
-    #                                 200).process()
-    # print(dict_list)
-
-    # dict_list = SimilarityProcessor(5, "nO3-QHELKU0_Kill This Love/", "nO3-QHELKU0_29.wav", 50).process()
-
-    for i in range(9, 17):
-        dict_list = SimilarityProcessor(5, "/home/jihee/choleor_media/audio/SLICE/GNGbmg_pVlQ/", f"GNGbmg_pVlQㅡ{i}.wav",
-                                        200).process()
-        print(dict_list)
-        pi_ = pickle.dumps(dict_list)
-        SimilarityRedisHandler.dao.set(f"GNGbmg_pVlQㅡ{i}", pi_)
+    SimilarityProcessor.process_for_user("DKpfWL0THsg", 0, 14, 26)
+    print("===========================================================")
+    for i in range(14, 27):
+        print(pickle.loads(SimilarityRedisHandler.dao.get(f"0:DKpfWL0THsgㅡ{i}")))
