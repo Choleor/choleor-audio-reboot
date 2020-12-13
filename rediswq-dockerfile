@@ -10,8 +10,8 @@ RUN apt-get -qq update && \
     apt-get -qq clean all && \
     rm -rf /var/cache/apk/*
 
-ADD https://kubernetes.io/docs/tasks/job/fine-parallel-processing-work-queue/rediswq.py?raw=true ./rediswq.py
-COPY worker.py ./worker.py
+ADD https://kubernetes.io/docs/tasks/job/fine-parallel-processing-work-queue/rediswq.py?raw=true rediswq.py
+COPY rediswq.py app/choleor_audio/audio/services/job/rediswq.py
 COPY queries /queries
 
 CMD [ "./worker.py" ]

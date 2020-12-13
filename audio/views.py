@@ -26,22 +26,27 @@ def y_url(request):
     :param request: data 내_url 값
     :return:
     """
+
     _url = request.data.get("url")
     _id = None
     _duration = None
     try:
+        print("request comes!")
         audio = Audio.objects.get(download_url=_url)
         _id = audio.audio_id
         _duration = audio.duration
         print("existed " + _id)
     except ObjectDoesNotExist:  # 처음 들어온 경우
         try:
+            print("before calling link")
             _id, _title, _duration = write_from_link(_url)
+            print(_id, _title, _duration)
             Audio(_id, _title, _duration, download_url="http://www.youtube.com/watch?v="+_id).save()
         except Exception as e:
             print(e)
             return Response("cannot open file.", status=400)
     finally:
+        # return JsonResponse({"audio_id": _id, "duration": _duration})
         return set_audio_response(f"{LF_WAV}{_id}.wav", _id, _duration)
 
 
@@ -53,13 +58,19 @@ def meta(request):
     """
     audio_info = request.data.get('title' + "-" + request.GET.get('artist'))
     audio = Audio.objects.filter(download_url=search_url_from_meta(audio_info))
+    if not bool(audio):
+        _id, _title, _duration = write_from_meta(audio_info)
+        audio = AudioPreprocessor(_id, _title, _duration).insert_to_audio()
+    # return JsonResponse({"audio_id": audio.audio_id,"duration": audio.duration})
 
     if bool(audio):  # 이미 데이터베이스에 있는 경우
-        return set_audio_response(f"{LF_WAV}{audio.audio_id}.wav", audio.audio_id, audio.duration)
+        return JsonResponse({"audio_id": audio.audio_id, "duration": audio.duration})
+    #     # TODO return set_audio_response(f"{LF_WAV}{audio.audio_id}.wav", audio.audio_id, audio.duration)
     else:
         _id, _title, _duration = write_from_meta(audio_info)
         audio = AudioPreprocessor(_id, _title, _duration).insert_to_audio()
-        return set_audio_response(f"{LF_WAV}{_id}.wav", audio.audio_id, audio.duration)
+        return JsonResponse(audio.audio_id, audio.duration)
+        # TODO return set_audio_response(f"{LF_WAV}{_id}.wav", audio.audio_id, audio.duration)
 
 
 @api_view(['POST'])
@@ -80,6 +91,7 @@ def file(request):
             path=LF_WAV + audio_id))
     Audio(audio_id=audio_id, duration=duration).save()
     # AudioPreprocessor(audio_id, "", duration).insert_to_audio()
+    #T return JsonResponse({"audio_id" : audio_id, "duration": duration})
     return set_audio_response(f"{LF_WAV}{audio_id}.wav", audio_id, duration)
 
 
@@ -98,10 +110,15 @@ def interval(request):
     # Preprocess execution first
     audio_id, start_sec, end_sec = request.data.get('audio_id'), request.data.get('start_sec'), request.data.get(
         'end_sec')
+    print(audio_id, start_sec, end_sec)
+    print(type(audio_id), type(start_sec), type(end_sec))
     aud = Audio.objects.filter(audio_id=audio_id)[0]
+    print(aud)
     user_id = str(uuid.uuid4())
+    print(user_id)
     preproc = AudioPreprocessor(audio_id, aud.title, aud.duration, bpm=aud.bpm, user_start=start_sec, user_end=end_sec)
     start_idx, end_idx = preproc.preprocess()
+    print(start_idx, end_idx)
     partition = preproc.remainder
     interval_n = end_idx - start_idx + 1
 
@@ -117,6 +134,7 @@ def interval(request):
     wav_src = AudioSegment.from_wav(f"{LF_WAV}/{audio_id}.wav")
     wav_src[1000 * preproc.usr_ssec:1000 * preproc.usr_esec].export(f"{usr_dir}100%/FINDIO.wav")
 
+    print("wow, audio segmentation finished")
     # Job 1. process amplitude  --> store in redis
     for i in range(start_idx, end_idx):
         _aud_sid = audio_id + "ㅡ" + str(i)

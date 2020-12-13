@@ -81,12 +81,12 @@ CACHES = {
     "user": rc.REDIS_USER_INFO
 }
 
-
-CORS_EXPOSE_HEADERS = ["audio_id", "duration"]
+CORS_EXPOSE_HEADERS = ["*"]
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_HEADERS = default_headers + (
     'Access-Control-Allow-Origin',
 )
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {

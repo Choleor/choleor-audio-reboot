@@ -5,11 +5,11 @@ from configuration.config import *
 """
 Activate configuration code below only when not running server #TODO
 """
-import os
-import django
-os.environ['DJANGO_SETTINGS_MODULE'] = 'choleor_audio.settings'
-django.setup()
-# TODO kubernetes comment
+# import os
+# import django
+# os.environ['DJANGO_SETTINGS_MODULE'] = 'choleor_audio.settings'
+# django.setup()
+# # TODO kubernetes comment
 
 
 class SingletonModel(models.Model):
