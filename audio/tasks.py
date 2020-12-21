@@ -28,16 +28,17 @@ def handle_uploaded_file(file, file_name, extension="wav", path=LF_WAV):
 
 
 @app.task(name="amplitude_process", ignore_result=True)
-def process_amplitude_d(_audio_slice_id):
-    return AmplitudeProcessor.process(_audio_slice_id)
+def process_amplitude_d(audio_id, partition, start_idx, end_idx):
+    return AmplitudeProcessor.process_for_user(audio_id, str(partition), start_idx, end_idx)
 
 
 @app.task(name="similarity_process", ignore_result=True)
-def process_similarity_d(_audio_slice_id):
+def process_similarity_d(audio_id, partition, start_idx, end_idx):
     #  군집 개수, 음악 파일의 경로, 음악 파일 이름, 유사한 노래 상위 몇개까지 출력할지
-    return [i + ":" + v for i, v in
-            SimilarityProcessor(5, LF_WAV + _audio_slice_id.split("ㅡ")[0] + "/", _audio_slice_id + ".wav",
-                                40).process().items()]
+    return SimilarityProcessor.process_for_user(audio_id, str(partition), start_idx, end_idx)
+    # return [i + ":" + v for i, v in
+    #         SimilarityProcessor(5, LF_WAV + _audio_slice_id.split("ㅡ")[0] + "/", _audio_slice_id + ".wav",
+    #                             40).process().items()]
 
 
 @app.task(name="add", ignore_result=True)

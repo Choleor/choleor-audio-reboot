@@ -1,6 +1,4 @@
 # from audio.services.job import rediswq
-# from django_redis import get_redis_connection
-#
 # import numpy as np
 # from numpy import dot
 # from numpy.linalg import norm
@@ -11,11 +9,13 @@
 # from sklearn.decomposition import PCA
 # from sklearn.cluster import KMeans
 # from audio.models import *
+# from django_redis import get_redis_connection
+# from kubernetes import client, config
 # from sklearn.metrics.pairwise import cosine_similarity
 # import glob
 #
 #
-# class SimilarityProcessor:
+# class SimilarityJobProcessor:
 #     def __init__(self, n_clusters, file_path, file, n):
 #         self.n_clusters = n_clusters
 #         self.file_path = file_path
@@ -125,7 +125,7 @@
 #             seg1_2d = seg1.reshape(-1, 1)  # 차원 축소
 #             seg2_2d = seg2.reshape(-1, 1)
 #
-#             sim = SimilarityProcessor.cos_sim(np.squeeze(seg1_2d), np.squeeze(seg2_2d))
+#             sim = SimilarityJobProcessor.cos_sim(np.squeeze(seg1_2d), np.squeeze(seg2_2d))
 #             sim = sim * 100  # 퍼센트(%) 단위로 나타냄
 #             sim = round(sim, 2)  # 소수 둘째자리에서 반올림
 #
@@ -162,18 +162,25 @@
 #                 idx = i
 #         return self.cluster_sim(filter_feat_data, idx)
 #
+#     @staticmethod
+#     def process_for_user(audioname, partition, start_idx, end_idx):
+#         for i in range(start_idx, end_idx + 1):
+#             dict_list = SimilarityJobProcessor(5, f"{LF_SLICE}{partition}/{audioname}/", f"{audioname}ㅡ{i}.wav",
+#                                                200).process()
+#             pi_smlr = pickle.dumps(dict_list)
+#             get_redis_connection("similarity").dao.set(f"{partition}:{audioname}ㅡ{i}", pi_smlr)
 #
-# q = rediswq.RedisWQ(name="smlr-wq", host="redis")
+#
+# q = rediswq.RedisWQ(name="similarity-wq", host="redis")
 # print("Worker with sessionID: " + q.sessionID())
 # print("Initial queue state: empty=" + str(q.empty()))
 # while not q.empty():
 #     item = q.lease(lease_secs=10, block=True, timeout=2)
 #     if item is not None:
-#         path = item.decode('UTF-8')
+#         path, audio_name, partition, start_idx, end_idx = item.decode('UTF-8').split(">")
 #         plist = path.split("/")
-#         res = pickle.dumps(SimilarityProcessor(5, "/".join(plist[:-1]), plist("/")[-1], 200).process())
-#         print(path, res)
-#         get_redis_connection("similarity").rpush(plist[-3] + ">" + plist[-1], res)
+#         SimilarityJobProcessor(5, "/".join(plist[:-1]), plist("/")[-1], 200).process_for_user(audio_name, partition,
+#                                                                                                   start_idx, end_idx)
 #         q.complete(item)
 #     else:
 #         print("Waiting for work")

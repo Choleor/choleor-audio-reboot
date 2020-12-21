@@ -14,4 +14,4 @@ ADD https://kubernetes.io/docs/tasks/job/fine-parallel-processing-work-queue/red
 COPY rediswq.py app/choleor_audio/audio/services/job/rediswq.py
 COPY queries /queries
 
-CMD [ "./worker.py" ]
+CMD [ "./smlr_job.py" ]

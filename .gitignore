@@ -25,3 +25,6 @@ mysql-dockerfile
 *.sql
 workspace.code-workspace
 .docker/setup.sql
+*.crt
+*.key
+**/*-dockerfile

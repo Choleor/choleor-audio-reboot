@@ -17,6 +17,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
+
 class SimilarityProcessor:
     def __init__(self, n_clusters, file_path, file, n):
         self.n_clusters = n_clusters
@@ -179,7 +180,7 @@ class SimilarityProcessor:
 
 
 if __name__ == '__main__':
-    SimilarityProcessor.process_for_user("DKpfWL0THsg", 0, 14, 26)
-    print("===========================================================")
-    for i in range(14, 27):
-        print(pickle.loads(SimilarityRedisHandler.dao.get(f"0:DKpfWL0THsgㅡ{i}")))
+    # SimilarityProcessor.process_for_user("DKpfWL0THsg", 0, 14, 26)
+    # print("===========================================================")
+    for i in range(6, 10):
+        print(pickle.loads(SimilarityRedisHandler.dao.get(f"6:-GAIe9DNFccㅡ{i}")))

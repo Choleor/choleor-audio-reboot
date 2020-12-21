@@ -1,18 +1,16 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, JsonResponse
-from rest_framework.parsers import JSONParser, MultiPartParser, FileUploadParser
-from pydub import AudioSegment
-from .serializers import AudioSerializer
+from rest_framework.parsers import JSONParser
 from rest_framework.decorators import api_view, parser_classes
-from rest_framework import status
 from audio.dbmanager.redis_dao import *
-from audio.utils.audio import *
 from audio.tasks import *
-from rest_framework.response import Response
+from audio.utils.audio import *
+from pydub import AudioSegment
 from .models import *
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+# from audio.services.job import job_handler
+from .tasks import process_similarity_d, process_amplitude_d
 
 
 @api_view(['POST'])
@@ -41,7 +39,7 @@ def y_url(request):
             print("before calling link")
             _id, _title, _duration = write_from_link(_url)
             print(_id, _title, _duration)
-            Audio(_id, _title, _duration, download_url="http://www.youtube.com/watch?v="+_id).save()
+            Audio(_id, _title, _duration, download_url="http://www.youtube.com/watch?v=" + _id).save()
         except Exception as e:
             print(e)
             return Response("cannot open file.", status=400)
@@ -91,7 +89,7 @@ def file(request):
             path=LF_WAV + audio_id))
     Audio(audio_id=audio_id, duration=duration).save()
     # AudioPreprocessor(audio_id, "", duration).insert_to_audio()
-    #T return JsonResponse({"audio_id" : audio_id, "duration": duration})
+    # T return JsonResponse({"audio_id" : audio_id, "duration": duration})
     return set_audio_response(f"{LF_WAV}{audio_id}.wav", audio_id, duration)
 
 
@@ -122,8 +120,10 @@ def interval(request):
     partition = preproc.remainder
     interval_n = end_idx - start_idx + 1
 
-    UserRedisHandler.set_user_info(user_id, partition, audio_id, start_idx, end_idx, 0, interval_n)
-    print("user redis..")
+    UserRedisHandler.set_user_info(user_id, partition, audio_id, preproc.bpm, start_idx, end_idx, 0, interval_n)
+    print("<======================= bpm =======================>")
+    print(preproc.bpm)
+    print("<======================= user redis =======================>")
 
     usr_dir = f"/home/jihee/choleor_media/product/{user_id}/"
 
@@ -131,37 +131,35 @@ def interval(request):
         os.mkdir(usr_dir)
         os.mkdir(usr_dir + "100%/")
 
+    # ========================== Job =============================
     wav_src = AudioSegment.from_wav(f"{LF_WAV}/{audio_id}.wav")
     wav_src[1000 * preproc.usr_ssec:1000 * preproc.usr_esec].export(f"{usr_dir}100%/FINDIO.wav")
 
-    print("wow, audio segmentation finished")
+    print("<======================= audio segmentation fin =======================>")
     # Job 1. process amplitude  --> store in redis
     for i in range(start_idx, end_idx):
         _aud_sid = audio_id + "ㅡ" + str(i)
 
         # check if there's already processed data in cache
-        if SimilarityRedisHandler.check_similarity_exists(str(partition) + ":" + _aud_sid):  # ALREADY processed in CACHE
-            SimilarityRedisHandler.update_expire_date(str(partition) + ":" + _aud_sid)  # prevent to expiration-> update expire date
+        if SimilarityRedisHandler.check_similarity_exists(
+                str(partition) + ":" + _aud_sid):  # ALREADY processed in CACHE
+            SimilarityRedisHandler.update_expire_date(
+                str(partition) + ":" + _aud_sid)  # prevent to expiration-> update expire date
         else:
-            SimilarityProcessor.process_for_user(audio_id, str(partition), start_idx, end_idx)
+            path = f"/home/jihee/choleor_media/audio/SLICE/{partition}/{audio_id}/{_aud_sid}.wav"
+            SimilarityProcessor.process_for_user(audio_id, partition, start_idx, end_idx)
 
+            # get_redis_connection("similarity-wq").dao.rpush(str(partition) + ":" + _aud_sid,
+            #                                                 ">".join([path, audio_id, partition, start_idx, end_idx]))
         if AmplitudeRedisHandler.check_amplitude_exists(str(partition) + ":" + _aud_sid):  # ALREADY processed in CACHE
-            AmplitudeRedisHandler.update_expire_date(str(partition) + ":" + _aud_sid)  # prevent to expiration-> update expire date
-
+            AmplitudeRedisHandler.update_expire_date(
+                str(partition) + ":" + _aud_sid)  # prevent to expiration-> update expire date
         else:  # PROCESS NEEDED --> CACHE INSERT
+            # get_redis_connection("amplitude-wq").dao.rpush(str(partition) + ":" + _aud_sid,
+            #                                                ">".join([audio_id, partition, start_idx, end_idx]))
+            # job_handler.ampl_job_main()
             AmplitudeProcessor.process_for_user(audio_id, partition, start_idx, end_idx)
-
-        # optimization 1. multi-processing 적용
-        # optimization 2. celery + redis
-        # process_similarity_d(_aud_sid).apply_async(_aud_sid, task_id="similarity" + _aud_sid)
-        # process_amplitude_d(_aud_sid).apply_async(_aud_sid, task_id="similarity" + _aud_sid)
-        # optimization 3. kubernetes job 실행
-        # # TOD 이후 job 이름으로 바꾸기, kubernetes python client로 연결
-        # ampl_job = "/home/jihee/choleor/dev_space/PycharmProjects/choleor_kube/audio/choleor-audio-job.yaml"
-        # smlr_job = ""
-        # os.system(f"microk8s kubectl apply -f {smlr_job}")  # 나중에 async로 바꾸던지
-        # os.system(f"microk8s kubectl apply -f {ampl_job}")
-
+            # process_amplitude_d.apply_async(args= (audio_id, str(partition), start_idx, end_idx), task_id="amplitude" + _aud_sid)
     # Respond to client
     return JsonResponse({"user_id": user_id, "interval_number": interval_n})
 

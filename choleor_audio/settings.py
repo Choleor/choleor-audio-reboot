@@ -13,9 +13,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = c.SECRET_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
+
+SECURE_SSL_REDIRECT = False
 
 # Application definition
 
@@ -30,6 +32,7 @@ INSTALLED_APPS = [
     'django_celery_results',
     'rest_framework',
     'corsheaders',
+    'sslserver',
     'audio'
 ]
 
@@ -77,7 +80,9 @@ CACHES = {
     "default": rc.REDIS_PREPRO_INFO,
     "prepro": rc.REDIS_PREPRO_INFO,
     "similarity": rc.REDIS_SMLR_INFO,
+    "similairty-wq": rc.REDIS_SMLR_WQ,
     "amplitude": rc.REDIS_AMPL_INFO,
+    "amplitude-wq": rc.REDIS_AMPL_WQ,
     "user": rc.REDIS_USER_INFO
 }
 

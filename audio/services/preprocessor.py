@@ -38,8 +38,7 @@ class AudioPreprocessor:
 
         self.usr_ssec, self.usr_sidx = AudioPreprocessor.get_nearest_elements(self.beat_track, self.usr_ssec)
         self.usr_eidx = AudioPreprocessor.get_nearest_elements(self.beat_track, self.usr_esec)[1] - 1
-        self.usr_esec = self.beat_track[self.usr_eidx]
-
+        self.usr_esec = self.beat_track[self.usr_eidx + 1]  # TODO changed
 
     @staticmethod
     def get_nearest_elements(_li, _input):
@@ -55,11 +54,11 @@ class AudioPreprocessor:
         if self.bpm == 0.00:
             self.bpm = 60.00 / ((self.beat_track[int(len(self.beat_track) / 2) + 1] - self.beat_track[
                 int(len(self.beat_track) / 2)]) / 8)
-        aud = Audio.objects.filter(audio_id=self._audio_id)[0]
+        aud = Audio.objects.filter(audio_id=self._audio_id)
 
-        if bool(aud) and aud.duration == 0.00:
-            aud.duration = self._duration
-            aud.bpm = self.bpm
+        if bool(aud[0]) and aud[0].duration == 0.00:
+            aud[0].duration = self._duration
+            aud[0].bpm = self.bpm
         else:
             aud = Audio(audio_id=self._audio_id, title=self._title,
                         download_url="http://www.youtube.com/watch?v=" + self._audio_id, duration=self._duration,
@@ -84,6 +83,7 @@ class AudioPreprocessor:
                 self.dynamic_slice(i)
 
         single_process_to_multi_process(len(self.beat_track) - 1, 4, _inner_beat_slice)
+
         self.insert_to_audio()
         self.insert_to_audio_slice()
 
@@ -98,20 +98,8 @@ class AudioPreprocessor:
         print()
         print("=============duration===============")
         print(self._duration)
-        print("=============usr's start info========")
+        print("=============user's idx info ========")
         print(self.usr_sidx, self.usr_eidx)
-        print("=============usr's end info==========")
+        print("=============user's sec info==========")
         print(self.usr_ssec, self.usr_esec)
         return self.usr_sidx, self.usr_eidx
-
-
-if __name__ == '__main__':
-    AudioPreprocessor("A0vq3jLAoQg", "React", 204, user_start=7.91, user_end=71.8).preprocess()
-
-# if __name__ == '__main__':
-#     # AudioPreprocessor('DKpfWL0THsg', 'ChungHa PLAY Lyrics (청하 플레이 가사) | Color Coded | Han/Rom/Eng sub',
-#     #                   203).preprocess()
-# print(pickle.loads(AmplitudeRedisHandler.dao.get("0:HNN9Uh1NzOoㅡ4")))
-# print(pickle.loads(SimilarityRedisHandler.dao.get("0:HNN9Uh1NzOoㅡ11")))
-#     print(a[0])
-#     print(a[1])
